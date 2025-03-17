@@ -18,6 +18,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install necessary dependencies and Python 3.12
 RUN apt-get update \
     && apt-get install -y \
+    build-essential \
     git \
     software-properties-common \
     curl \
@@ -30,6 +31,7 @@ RUN apt-get update \
     libsm6 \
     libxext6 \
     libgl1 \
+    g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
