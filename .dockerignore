@@ -1,0 +1,71 @@
+# --- Docker specific files ---
+# Ignore files used to manage the build/run, not part of the app itself
+Dockerfile
+docker-compose.yml
+docker-build.sh
+.dockerignore
+
+# --- Git ---
+# Ignore the git repository metadata and config files
+.git/
+.gitignore
+.gitattributes
+
+# --- CI/CD & GitHub ---
+# Ignore continuous integration and GitHub specific files
+.ci/
+.github/
+
+# --- Local Python Artifacts ---
+# Ignore compiled files, caches, and local virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*venv/
+venv/
+.venv/
+
+# --- Runtime Data Directories ---
+# Ignore the *content* of these directories if they exist locally,
+# but allow the directories themselves if needed by COPY commands initially.
+# More robustly: Ignore the directories entirely, they will be handled by volumes.
+input/
+output/
+models/
+# We will mount ./custom_nodes and ./user via docker-compose, ignore local copies.
+custom_nodes/
+user/
+python_user_packages/ # Ignore if present
+
+# --- Tests ---
+# Ignore testing framework files and directories
+tests/
+tests-unit/
+pytest.ini
+
+# --- Examples & Docs ---
+# Ignore notebooks, script examples, and documentation files
+notebooks/
+script_examples/
+README.md
+CONTRIBUTING.md
+
+# --- Non-essential Utility Scripts ---
+# Ignore scripts not typically needed for standard runtime
+fix_torch.py
+new_updater.py
+
+# --- OS/IDE specific files ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
+.vscode/
+.idea/
+*.log
+
+# --- Misc ---
+*~

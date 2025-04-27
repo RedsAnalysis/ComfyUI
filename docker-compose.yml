@@ -1,0 +1,54 @@
+services:
+  comfyui_backend:
+    # IMPORTANT: Ensure this image tag matches the output of your ./docker-build.sh script
+    # Example: comfyui-red-image:nvidia-stable or comfyui-red-image:amd-latest
+    image: comfyui-nvidia:v0.3.30  # <-- ADJUST THIS TAG!
+    container_name: comfyui-red-container
+    ports:
+      - "8188:8188"
+    volumes:
+      # --- Host Bind Mounts for Data and Configuration ---
+      # These map directories from your host (where docker-compose.yml is)
+      # into the container. Docker creates host dirs if they don't exist.
+      - ./input:/app/comfyui/input          # For your input files
+      - ./output:/app/comfyui/output        # For ComfyUI's output files
+      - ./models:/app/comfyui/models        # For model files (entrypoint creates subdirs)
+      - ./custom_nodes:/app/comfyui/custom_nodes # For custom nodes (entrypoint initializes with Manager)
+      - ./user:/app/comfyui/user            # For user configuration/workflows (ComfyUI creates defaults)
+
+      # --- Named Volume for Venv Persistence ---
+      # Persists the Python virtual environment built into the image
+      - comfyui_venv_data:/app/venv
+
+    environment:
+      # Sets the command search path inside the container.
+      # Includes the venv bin, uv bin, and standard system paths.
+      - PATH=/app/venv/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+    # --- GPU Configuration ---
+    # Uses the recommended 'deploy' key for Docker Swarm/Compose v2+ GPU access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia # Change to 'amd' or appropriate driver if not NVIDIA
+              count: all
+              capabilities: [gpu]
+
+    # --- Restart Policy ---
+    # Automatically restart the container unless it is explicitly stopped.
+    restart: unless-stopped
+
+    # --- Fallback GPU config (Only needed if 'deploy' key fails) ---
+    # Uncomment these lines if you have issues with the 'deploy' key method.
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    #   - NVIDIA_DRIVER_CAPABILITIES=all
+    # healthcheck: Defined in Dockerfile, inherited automatically.
+
+# --- Named Volume Definitions ---
+# Defines Docker-managed volumes used by the services above.
+volumes:
+  comfyui_venv_data: {}
+  # comfyui_user_config: {} # Removed as ./user is now a bind mount
