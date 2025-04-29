@@ -962,7 +962,7 @@ def get_offload_stream(device):
     elif is_device_cuda(device):
         ss = []
         for k in range(NUM_STREAMS):
-            ss.append(torch.cuda.Stream(device=device, priority=10))
+            ss.append(torch.cuda.Stream(device=device, priority=0))
         STREAMS[device] = ss
         s = ss[stream_counter]
         stream_counter = (stream_counter + 1) % len(ss)
@@ -980,6 +980,9 @@ def cast_to(weight, dtype=None, device=None, non_blocking=False, copy=False, str
         if not copy:
             if dtype is None or weight.dtype == dtype:
                 return weight
+        if stream is not None:
+            with stream:
+                return weight.to(dtype=dtype, copy=copy)
         return weight.to(dtype=dtype, copy=copy)
 
     if stream is not None:
