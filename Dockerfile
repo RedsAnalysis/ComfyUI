@@ -149,6 +149,7 @@ COPY --from=builder /build/comfyui/comfyui_version.py /app/comfyui/
 COPY --from=builder /build/comfyui/latent_preview.py /app/comfyui/
 COPY --from=builder /build/comfyui/cuda_malloc.py /app/comfyui/
 COPY --from=builder /build/comfyui/folder_paths.py /app/comfyui/
+COPY --from=builder /build/comfyui/hook_breaker_ac10a0.py /app/comfyui/
 
 # Core library directories
 COPY --from=builder /build/comfyui/comfy /app/comfyui/comfy/
