@@ -156,6 +156,7 @@ COPY --from=builder /build/comfyui/comfy /app/comfyui/comfy/
 COPY --from=builder /build/comfyui/comfy_extras /app/comfyui/comfy_extras/
 COPY --from=builder /build/comfyui/comfy_api_nodes /app/comfyui/comfy_api_nodes/
 COPY --from=builder /build/comfyui/comfy_execution /app/comfyui/comfy_execution/
+COPY --from=builder /build/comfyui/comfy_api /app/comfyui/comfy_api/
 
 # Web UI Assets (Located in 'app' directory)
 COPY --from=builder /build/comfyui/app /app/comfyui/app/
