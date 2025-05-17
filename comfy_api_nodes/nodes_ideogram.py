@@ -23,6 +23,7 @@ from comfy_api_nodes.apinode_utils import (
     bytesio_to_image_tensor,
     resize_mask_to_image,
 )
+from server import PromptServer
 
 V1_V1_RES_MAP = {
   "Auto":"AUTO",
@@ -232,11 +233,22 @@ def download_and_process_images(image_urls):
     return stacked_tensors
 
 
+def display_image_urls_on_node(image_urls, node_id):
+    if node_id and image_urls:
+        if len(image_urls) == 1:
+            PromptServer.instance.send_progress_text(
+                f"Generated Image URL:\n{image_urls[0]}", node_id
+            )
+        else:
+            urls_text = "Generated Image URLs:\n" + "\n".join(
+                f"{i+1}. {url}" for i, url in enumerate(image_urls)
+            )
+            PromptServer.instance.send_progress_text(urls_text, node_id)
+
+
 class IdeogramV1(ComfyNodeABC):
     """
-    Generates images synchronously using the Ideogram V1 model.
-
-    Images links are available for a limited period of time; if you would like to keep the image, you must download it.
+    Generates images using the Ideogram V1 model.
     """
 
     def __init__(self):
@@ -303,7 +315,11 @@ class IdeogramV1(ComfyNodeABC):
                     {"default": 1, "min": 1, "max": 8, "step": 1, "display": "number"},
                 ),
             },
-            "hidden": {"auth_token": "AUTH_TOKEN_COMFY_ORG"},
+            "hidden": {
+                "auth_token": "AUTH_TOKEN_COMFY_ORG",
+                "comfy_api_key": "API_KEY_COMFY_ORG",
+                "unique_id": "UNIQUE_ID",
+            },
         }
 
     RETURN_TYPES = (IO.IMAGE,)
@@ -321,7 +337,8 @@ class IdeogramV1(ComfyNodeABC):
         seed=0,
         negative_prompt="",
         num_images=1,
-        auth_token=None,
+        unique_id=None,
+        **kwargs,
     ):
         # Determine the model based on turbo setting
         aspect_ratio = V1_V2_RATIO_MAP.get(aspect_ratio, None)
@@ -347,7 +364,7 @@ class IdeogramV1(ComfyNodeABC):
                     negative_prompt=negative_prompt if negative_prompt else None,
                 )
             ),
-            auth_token=auth_token,
+            auth_kwargs=kwargs,
         )
 
         response = operation.execute()
@@ -360,14 +377,13 @@ class IdeogramV1(ComfyNodeABC):
         if not image_urls:
             raise Exception("No image URLs were generated in the response")
 
+        display_image_urls_on_node(image_urls, unique_id)
         return (download_and_process_images(image_urls),)
 
 
 class IdeogramV2(ComfyNodeABC):
     """
-    Generates images synchronously using the Ideogram V2 model.
-
-    Images links are available for a limited period of time; if you would like to keep the image, you must download it.
+    Generates images using the Ideogram V2 model.
     """
 
     def __init__(self):
@@ -458,7 +474,11 @@ class IdeogramV2(ComfyNodeABC):
                 #    },
                 #),
             },
-            "hidden": {"auth_token": "AUTH_TOKEN_COMFY_ORG"},
+            "hidden": {
+                "auth_token": "AUTH_TOKEN_COMFY_ORG",
+                "comfy_api_key": "API_KEY_COMFY_ORG",
+                "unique_id": "UNIQUE_ID",
+            },
         }
 
     RETURN_TYPES = (IO.IMAGE,)
@@ -479,7 +499,8 @@ class IdeogramV2(ComfyNodeABC):
         negative_prompt="",
         num_images=1,
         color_palette="",
-        auth_token=None,
+        unique_id=None,
+        **kwargs,
     ):
         aspect_ratio = V1_V2_RATIO_MAP.get(aspect_ratio, None)
         resolution = V1_V1_RES_MAP.get(resolution, None)
@@ -519,7 +540,7 @@ class IdeogramV2(ComfyNodeABC):
                     color_palette=color_palette if color_palette else None,
                 )
             ),
-            auth_token=auth_token,
+            auth_kwargs=kwargs,
         )
 
         response = operation.execute()
@@ -532,14 +553,12 @@ class IdeogramV2(ComfyNodeABC):
         if not image_urls:
             raise Exception("No image URLs were generated in the response")
 
+        display_image_urls_on_node(image_urls, unique_id)
         return (download_and_process_images(image_urls),)
 
 class IdeogramV3(ComfyNodeABC):
     """
-    Generates images synchronously using the Ideogram V3 model.
-
-    Supports both regular image generation from text prompts and image editing with mask.
-    Images links are available for a limited period of time; if you would like to keep the image, you must download it.
+    Generates images using the Ideogram V3 model. Supports both regular image generation from text prompts and image editing with mask.
     """
 
     def __init__(self):
@@ -621,7 +640,11 @@ class IdeogramV3(ComfyNodeABC):
                     },
                 ),
             },
-            "hidden": {"auth_token": "AUTH_TOKEN_COMFY_ORG"},
+            "hidden": {
+                "auth_token": "AUTH_TOKEN_COMFY_ORG",
+                "comfy_api_key": "API_KEY_COMFY_ORG",
+                "unique_id": "UNIQUE_ID",
+            },
         }
 
     RETURN_TYPES = (IO.IMAGE,)
@@ -641,7 +664,8 @@ class IdeogramV3(ComfyNodeABC):
         seed=0,
         num_images=1,
         rendering_speed="BALANCED",
-        auth_token=None,
+        unique_id=None,
+        **kwargs,
     ):
         # Check if both image and mask are provided for editing mode
         if image is not None and mask is not None:
@@ -705,7 +729,7 @@ class IdeogramV3(ComfyNodeABC):
                     "mask": mask_binary,
                 },
                 content_type="multipart/form-data",
-                auth_token=auth_token,
+                auth_kwargs=kwargs,
             )
 
         elif image is not None or mask is not None:
@@ -746,7 +770,7 @@ class IdeogramV3(ComfyNodeABC):
                     response_model=IdeogramGenerateResponse,
                 ),
                 request=gen_request,
-                auth_token=auth_token,
+                auth_kwargs=kwargs,
             )
 
         # Execute the operation and process response
@@ -760,6 +784,7 @@ class IdeogramV3(ComfyNodeABC):
         if not image_urls:
             raise Exception("No image URLs were generated in the response")
 
+        display_image_urls_on_node(image_urls, unique_id)
         return (download_and_process_images(image_urls),)
 
 
@@ -774,4 +799,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "IdeogramV2": "Ideogram V2",
     "IdeogramV3": "Ideogram V3",
 }
-
