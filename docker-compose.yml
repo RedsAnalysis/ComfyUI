@@ -2,7 +2,7 @@ services:
   comfyui_backend:
     # IMPORTANT: Ensure this image tag matches the output of your ./docker-build.sh script
     # Example: comfyui-red-image:nvidia-stable or comfyui-red-image:amd-latest
-    image: comfyui-nvidia:v0.3.30  # <-- ADJUST THIS TAG!
+    image: comfyui-nvidia:v0.3.43  # <-- ADJUST THIS TAG!
     container_name: comfyui-red-container
     ports:
       - "8188:8188"

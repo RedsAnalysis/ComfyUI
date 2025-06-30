@@ -7,7 +7,7 @@ docker-build.sh
 
 # --- Git ---
 # Ignore the git repository metadata and config files
-.git/
+# .git/ # DO NOT IGNORE - needed for COPY --from=builder
 .gitignore
 .gitattributes
 

@@ -92,9 +92,9 @@ WORKDIR /build
 # --- Clone Repositories ---
 # Clone ComfyUI and ComfyUI-Manager. Use --depth 1 for faster clones (no history).
 RUN echo "Cloning ComfyUI..." \
-    && git clone --depth 1 https://github.com/RedsAnalysis/ComfyUI.git comfyui \
+    && git clone https://github.com/comfyanonymous/ComfyUI.git comfyui \
     && echo "Cloning ComfyUI-Manager..." \
-    && git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git comfyui/custom_nodes/ComfyUI-Manager
+    && git clone https://github.com/ltdrdata/ComfyUI-Manager.git comfyui/custom_nodes/ComfyUI-Manager
 
 # --- Filter and Install Application Requirements ---
 # Install Python dependencies for ComfyUI and the Manager into the venv created in the base stage.
@@ -149,22 +149,23 @@ COPY --from=builder /build/comfyui/comfyui_version.py /app/comfyui/
 COPY --from=builder /build/comfyui/latent_preview.py /app/comfyui/
 COPY --from=builder /build/comfyui/cuda_malloc.py /app/comfyui/
 COPY --from=builder /build/comfyui/folder_paths.py /app/comfyui/
+COPY --from=builder /build/comfyui/hook_breaker_ac10a0.py /app/comfyui/
 
 # Core library directories
 COPY --from=builder /build/comfyui/comfy /app/comfyui/comfy/
 COPY --from=builder /build/comfyui/comfy_extras /app/comfyui/comfy_extras/
 COPY --from=builder /build/comfyui/comfy_api_nodes /app/comfyui/comfy_api_nodes/
 COPY --from=builder /build/comfyui/comfy_execution /app/comfyui/comfy_execution/
+COPY --from=builder /build/comfyui/comfy_api /app/comfyui/comfy_api/
 
 # Web UI Assets (Located in 'app' directory)
 COPY --from=builder /build/comfyui/app /app/comfyui/app/
+COPY --from=builder /build/comfyui/.git /app/comfyui/.git/
 
 # Supporting Python modules and files
 COPY --from=builder /build/comfyui/utils /app/comfyui/utils/
 COPY --from=builder /build/comfyui/api_server /app/comfyui/api_server/
 
-# Copy ComfyUI-Manager node specifically
-COPY --from=builder /build/comfyui/custom_nodes /app/comfyui/custom_nodes/
 
 # Copy the entrypoint script (This file must exist next to the Dockerfile)
 COPY doc-entrypoint.sh /app/doc-entrypoint.sh
