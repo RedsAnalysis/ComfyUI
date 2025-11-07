@@ -143,6 +143,9 @@ class CLIP:
         n.apply_hooks_to_conds = self.apply_hooks_to_conds
         return n
 
+    def get_ram_usage(self):
+        return self.patcher.get_ram_usage()
+
     def add_patches(self, patches, strength_patch=1.0, strength_model=1.0):
         return self.patcher.add_patches(patches, strength_patch, strength_model)
 
@@ -276,8 +279,13 @@ class VAE:
         if 'decoder.up_blocks.0.resnets.0.norm1.weight' in sd.keys(): #diffusers format
             sd = diffusers_convert.convert_vae_state_dict(sd)
 
-        self.memory_used_encode = lambda shape, dtype: (1767 * shape[2] * shape[3]) * model_management.dtype_size(dtype) #These are for AutoencoderKL and need tweaking (should be lower)
-        self.memory_used_decode = lambda shape, dtype: (2178 * shape[2] * shape[3] * 64) * model_management.dtype_size(dtype)
+        if model_management.is_amd():
+            VAE_KL_MEM_RATIO = 2.73
+        else:
+            VAE_KL_MEM_RATIO = 1.0
+
+        self.memory_used_encode = lambda shape, dtype: (1767 * shape[2] * shape[3]) * model_management.dtype_size(dtype) * VAE_KL_MEM_RATIO #These are for AutoencoderKL and need tweaking (should be lower)
+        self.memory_used_decode = lambda shape, dtype: (2178 * shape[2] * shape[3] * 64) * model_management.dtype_size(dtype) * VAE_KL_MEM_RATIO
         self.downscale_ratio = 8
         self.upscale_ratio = 8
         self.latent_channels = 4
@@ -288,6 +296,7 @@ class VAE:
         self.working_dtypes = [torch.bfloat16, torch.float32]
         self.disable_offload = False
         self.not_video = False
+        self.size = None
 
         self.downscale_index_formula = None
         self.upscale_index_formula = None
@@ -590,6 +599,16 @@ class VAE:
 
         self.patcher = comfy.model_patcher.ModelPatcher(self.first_stage_model, load_device=self.device, offload_device=offload_device)
         logging.info("VAE load device: {}, offload device: {}, dtype: {}".format(self.device, offload_device, self.vae_dtype))
+        self.model_size()
+
+    def model_size(self):
+        if self.size is not None:
+            return self.size
+        self.size = comfy.model_management.module_size(self.first_stage_model)
+        return self.size
+
+    def get_ram_usage(self):
+        return self.model_size()
 
     def throw_exception_if_invalid(self):
         if self.first_stage_model is None:
@@ -1257,7 +1276,7 @@ def load_state_dict_guess_config(sd, output_vae=True, output_clip=True, output_c
     return (model_patcher, clip, vae, clipvision)
 
 
-def load_diffusion_model_state_dict(sd, model_options={}):
+def load_diffusion_model_state_dict(sd, model_options={}, metadata=None):
     """
     Loads a UNet diffusion model from a state dictionary, supporting both diffusers and regular formats.
 
@@ -1291,7 +1310,7 @@ def load_diffusion_model_state_dict(sd, model_options={}):
     weight_dtype = comfy.utils.weight_dtype(sd)
 
     load_device = model_management.get_torch_device()
-    model_config = model_detection.model_config_from_unet(sd, "")
+    model_config = model_detection.model_config_from_unet(sd, "", metadata=metadata)
 
     if model_config is not None:
         new_sd = sd
@@ -1325,7 +1344,10 @@ def load_diffusion_model_state_dict(sd, model_options={}):
     else:
         unet_dtype = dtype
 
-    manual_cast_dtype = model_management.unet_manual_cast(unet_dtype, load_device, model_config.supported_inference_dtypes)
+    if model_config.layer_quant_config is not None:
+        manual_cast_dtype = model_management.unet_manual_cast(None, load_device, model_config.supported_inference_dtypes)
+    else:
+        manual_cast_dtype = model_management.unet_manual_cast(unet_dtype, load_device, model_config.supported_inference_dtypes)
     model_config.set_inference_dtype(unet_dtype, manual_cast_dtype)
     model_config.custom_operations = model_options.get("custom_operations", model_config.custom_operations)
     if model_options.get("fp8_optimizations", False):
@@ -1341,8 +1363,8 @@ def load_diffusion_model_state_dict(sd, model_options={}):
 
 
 def load_diffusion_model(unet_path, model_options={}):
-    sd = comfy.utils.load_torch_file(unet_path)
-    model = load_diffusion_model_state_dict(sd, model_options=model_options)
+    sd, metadata = comfy.utils.load_torch_file(unet_path, return_metadata=True)
+    model = load_diffusion_model_state_dict(sd, model_options=model_options, metadata=metadata)
     if model is None:
         logging.error("ERROR UNSUPPORTED DIFFUSION MODEL {}".format(unet_path))
         raise RuntimeError("ERROR: Could not detect model type of: {}\n{}".format(unet_path, model_detection_error_hint(unet_path, sd)))
